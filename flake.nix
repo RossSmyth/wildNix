@@ -45,13 +45,17 @@
       };
 
       checks.${system} = let
-          wildPkgs = import nixpkgs {
+          pkgs = import nixpkgs {
             inherit system;
             overlays = [ self.overlays.default ];
           };
         in {
-        adapter = wildPkgs.hello.override (old: {
-          stdenv = wildPkgs.useWildLinker wildPkgs.stdenv;
+        adapterGcc = pkgs.hello.override (old: {
+          stdenv = pkgs.useWildLinker pkgs.stdenv;
+        });
+
+        adapterClang = pkgs.hello.override (old: {
+          stdenv = pkgs.useWildLinker pkgs.clangStdenv;
         });
       };
     };
