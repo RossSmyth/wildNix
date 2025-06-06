@@ -92,8 +92,13 @@ rustPlatform.buildRustPackage (finalAttrs: {
     glibc.out
     glibc.static
   ];
-  checkPhase = ''
-    export LD_LIBRARY_PATH=${lib.makeLibraryPath [ stdenv.cc.cc.lib ]}
+  preCheck = ''
+    export LD_LIBRARY_PATH=${
+      lib.makeLibraryPath [
+        stdenv.cc.cc.lib
+      ]
+    }:$LD_LIBRARY_PATH
+
     export PATH=${
       lib.makeBinPath [
         binutils-unwrapped-all-targets
@@ -103,7 +108,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
         lld
       ]
     }:$PATH
-    cargoCheckHook
   '';
 
   # TOOD: once v0.6.0 is released with the patches we need, switch to that and
