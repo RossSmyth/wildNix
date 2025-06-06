@@ -1,0 +1,51 @@
+name: Checks
+on:
+  push:
+
+jobs:
+  calc-matrix:
+    name: Find Checks 🔍
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.calc-matrix.outputs.matrix }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Nix ❄️
+        uses: nixbuild/nix-quick-install-action@v30
+        with:
+          nix_on_tmpfs: true
+
+      - name: Calculate Check 🖩
+        id: calc-matrix
+        run: |
+          matrix=$(nix flake show --json | jq -c '.checks."x86_64-linux"|keys_unsorted')
+          echo "Matrix: $matrix"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  checks:
+    needs: calc-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        check: ${{ fromJson(needs.calc-matrix.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    name: Check/${{ matrix.check }} 🤔
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Nix ❄️
+        uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run ${{ matrix.check }} 📋
+        run: nix build .#checks.x86_64-linux.${{ matrix.check }} -L --show-trace
