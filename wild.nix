@@ -3,7 +3,7 @@
   stdenv,
   fetchFromGitHub,
   fetchpatch,
-  writeShellApplication,
+  makeBinaryWrapper,
   rustPlatform,
   nix-update-script,
   versionCheckHook,
@@ -19,15 +19,43 @@ let
   # instead of the hardcoded wrapper search directory.
   # We pass it last because apparently gcc likes picking ld from the *first* -B,
   # which we want our wild target directory to be if passed.
-  gccWrapper = writeShellApplication {
-    name = "gcc";
-    text = ''${lib.getExe gcc} "$@" -B${binutils-unwrapped-all-targets}/bin'';
-  };
-  gppWrapper = writeShellApplication {
-    name = "g++";
-    text = ''${lib.getExe' gcc "g++"} "$@" -B${binutils-unwrapped-all-targets}/bin'';
+  gccWrapper = stdenv.mkDerivation {
+    inherit (gcc) meta name;
+    dontUnpack = true;
+    dontConfigure = true;
+    dontInstall = true;
+
+    buildInputs = [ makeBinaryWrapper ];
+    buildPhase = ''
+      runHook preBuild
+
+      makeWrapper ${lib.getExe gcc} $out/bin/gcc \
+        --append-flag -B${binutils-unwrapped-all-targets}/bin
+
+      runHook postBuild
+    '';
+
   };
 
+  gppWrapper = stdenv.mkDerivation {
+    dontUnpack = true;
+    dontConfigure = true;
+    dontInstall = true;
+
+    name = "g++-wrapped";
+    buildInputs = [ makeBinaryWrapper ];
+    buildPhase = ''
+      runHook preBuild
+
+      makeWrapper ${lib.getExe' gcc "g++"} $out/bin/g++ \
+        --append-flag -B${binutils-unwrapped-all-targets}/bin
+
+      runHook postBuild
+    '';
+    meta = gcc.meta // {
+      mainProgram = "g++";
+    };
+  };
 in
 rustPlatform.buildRustPackage (finalAttrs: {
   strictDeps = true;
